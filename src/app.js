@@ -3,14 +3,16 @@ const express = require("express");
 const app = express();
 
 
-app.get("/user/:userID/:name", (req, res) => {
-    console.log(req.params);
+app.get("/user", (req, res, next) => {
+    console.log("Handling route 1");
     res.send("Hello, I'm Naruto!");
-});
-
-app.get("/", (req, res) => {
-    res.send("Tatakae!, Server is running.");
-});
+    next();
+},
+(req, res) => {
+    console.log("Handling route 2");
+    res.send("Hello, I'm Boruto!");
+}
+);
 
 app.listen(3000, ()=>{
     console.log("Server is running on port 3000.");
