@@ -3,13 +3,12 @@ const express = require("express");
 const app = express();
 
 
-
-app.use("/greet", (req, res) => {
+app.get("/greet", (req, res) => {
     res.send("Hello, I'm Naruto!");
 });
 
-app.use("/", (req, res) => {
-    res.send("Tatakae!");
+app.get("/", (req, res) => {
+    res.send("Tatakae!, Server is running.");
 });
 
 app.listen(3000, ()=>{
