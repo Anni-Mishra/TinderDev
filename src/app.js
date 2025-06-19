@@ -39,7 +39,7 @@ app.post("/signup", async (req, res) => {
         await user.save();
     res.send("User Added Successfully");
     } catch (err) {
-        res.status(400).send("Error saving the user : ", err.message);
+        res.status(400).send("Error saving the user : " + err.message);
     }
     
 });
@@ -55,15 +55,27 @@ app.delete("/user", async (req, res) => {
     }
 });
 
-app.patch("/user", async (req, res) => {
-    const userId = req.body.userId;
+app.patch("/user/:userId", async (req, res) => {
+    const userId = req.params?.userId;
     const data = req.body;
 
     try {
-        await User.findByIdAndUpdate({_id: userId}, data);
+        const ALLOWED_UPDATES = [ "about", "skills", "photoURL"];
+
+        const isUpdateAllowed = Object.keys(data).every((k) =>
+            ALLOWED_UPDATES.includes(k)
+        );
+        if (!isUpdateAllowed) {
+            throw new Error("Update not allowed!");
+        }
+        if(data?.skills.length > 10){
+            throw new Error("Skills cannot be more than 10!");
+        };
+        await User.findByIdAndUpdate({_id: userId}, data, { returnDocument: "after", runValidators: true});
         res.send("User updated successfully...");
-    } catch (err) {
-        res.status(400).send("Something went wrong...");
+        } 
+        catch (err) {
+        res.status(400).send("Update Failed... " + err.message);
     }
 }); 
 
