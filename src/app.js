@@ -2,82 +2,83 @@ const express = require("express");
 const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
+const { validateSignUpData } = require("./utils/validation");
+const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require('jsonwebtoken');
+const { userAuth } = require("./middlewares/auth"); 
 
 app.use(express.json());
-
-app.get("/user", async (req, res) => {
-    const userEmail = req.body.emailId;
-    
-    try {
-        const users = await User.find({emailId: userEmail});
-        if(users.length === 0) {
-            res.status(404).send("User not found...");
-        } else {
-            res.send(users);
-        }
-    }
-    catch(err) {
-        res.status(400).send("Something went wrong...");
-    }
-
-});
-
-app.get("/feed", async (req, res) => {
-    try {
-        const users = await User.find({});
-        res.send(users);
-    }
-    catch(err) {
-        res.status(400).send("Something went wrong...");
-    }
-})
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
-    const user = new User(req.body);
+  try {
+    //Validation of data
+    validateSignUpData(req);
 
-    try {
-        await user.save();
+    const { firstName, lastName, gender, emailId, password } = req.body;
+    //Encrypt the password
+    const passwordHash = await bcrypt.hash(password, 10);
+    console.log(passwordHash);
+
+    //Creating new instance of the User model
+    const user = new User({
+      firstName,
+      lastName,
+      gender,
+      emailId,
+      password: passwordHash,
+    });
+    await user.save();
     res.send("User Added Successfully");
-    } catch (err) {
-        res.status(400).send("Error saving the user : " + err.message);
-    }
-    
+  } catch (err) {
+    res.status(400).send("ERROR : " + err.message);
+  }
 });
 
-app.delete("/user", async (req, res) => {
-    const userId = req.body.userId;
+app.post("/login", async (req, res) => {
+   try {
+    const { emailId, password } = req.body;
 
-    try {
-        const user = await User.findByIdAndDelete(userId);
-        res.send("User deleted successfully...");
-    } catch (err) {
-        res.status(400).send("Cannot delete user...");
+    const user = await User.findOne({emailId: emailId}); // user is instance
+    if(!user) {
+        throw new Error("Invalid credentials!! ");
+    } 
+    const isPasswordValid = await user.validatePassword(password);
+
+    if(isPasswordValid) {
+        const token = await user.getJWT(); // getJWT is mongoose schema method - works on instance level only
+
+        res.cookie("token", token, {
+            expires: new Date(Date.now() + 8 * 3600000),
+        });
+
+        res.send("Login Successfull... ");
+    } else {
+        throw new Error ("Invalid credentials!! ");
     }
+
+   } catch (err) {
+    res.status(400).send("ERROR : " + err.message);
+  } 
 });
 
-app.patch("/user/:userId", async (req, res) => {
-    const userId = req.params?.userId;
-    const data = req.body;
-
+app.get("/profile", userAuth, async (req, res) => {
     try {
-        const ALLOWED_UPDATES = [ "about", "skills", "photoURL"];
-
-        const isUpdateAllowed = Object.keys(data).every((k) =>
-            ALLOWED_UPDATES.includes(k)
-        );
-        if (!isUpdateAllowed) {
-            throw new Error("Update not allowed!");
-        }
-        if(data?.skills.length > 10){
-            throw new Error("Skills cannot be more than 10!");
-        };
-        await User.findByIdAndUpdate({_id: userId}, data, { returnDocument: "after", runValidators: true});
-        res.send("User updated successfully...");
-        } 
-        catch (err) {
-        res.status(400).send("Update Failed... " + err.message);
+        const user = req.user;
+        res.send(user);
+    } catch (err) {
+        res.status(400).send("Error : " + err.message);
     }
-}); 
+  
+});
+
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+    const user = req.user;
+    console.log("Sending request... ");
+
+    res.send(user.firstName + " Sent The Connection Request ! ");
+});  
 
 connectDB()
   .then(() => {
