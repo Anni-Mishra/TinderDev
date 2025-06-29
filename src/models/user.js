@@ -28,11 +28,15 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      validate: function (value) {
-        if (!validator.isStrongPassword(value)) {
-          throw new Error("Be more creative, Weak password rn... ");
-        }
+      enum: {
+        values: ["male", "female", "other"],
+        message: `{VALUE} is not valid gender type`
       },
+      // validate: function (value) {
+      //   if (!validator.isStrongPassword(value)) {
+      //     throw new Error("Be more creative, Weak password rn... ");
+      //   }
+      // },
     },
     age: {
       type: Number,
